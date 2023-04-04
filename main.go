@@ -4,11 +4,14 @@ import (
 	"bufio"
 	"fmt"
 	"googleBard/bard"
+	"googleBard/translate"
 	"log"
 	"os"
 )
 
 func main() {
+	googleTranslate := translate.NewGoogle("zh-CN", "en")
+
 	sessionID := ""
 
 	b := bard.NewBard(sessionID)
@@ -24,12 +27,17 @@ func main() {
 		scanner.Scan()
 		message := scanner.Text()
 
-		response, err := b.SendMessage(message, bardOptions)
+		translateMessage, err := googleTranslate.Translate(message)
 		if err != nil {
 			log.Fatalln(err)
 		}
 
-		fmt.Printf("Bard: %s\n\n\n", response.Choices[0].Answer)
+		response, err := b.SendMessage(translateMessage, bardOptions)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		fmt.Printf("Bard: %s\n\n", response.Choices[0].Answer)
 
 		bardOptions.ConversationID = response.ConversationID
 		bardOptions.ResponseID = response.ResponseID
