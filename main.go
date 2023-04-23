@@ -3,8 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"googleBard/bard"
-	"googleBard/translate"
+	"github.com/CNZeroY/googleBard/bard"
+	"github.com/CNZeroY/googleBard/translate"
 	"log"
 	"os"
 )
