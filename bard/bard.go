@@ -16,24 +16,21 @@ type Bard struct {
 	BaseURL   string
 	Headers   http.Header
 	RequestID int64
+	Proxy     string
 }
-
 type Options struct {
 	ConversationID string
 	ResponseID     string
 	ChoiceID       string
 }
-
 type RequestBody struct {
 	FReq string `json:"f.req"`
 	At   string `json:"at"`
 }
-
 type Choice struct {
 	ChoiceID string `json:"choice_id"`
 	Answer   string `json:"answer"`
 }
-
 type ResponseBody struct {
 	ResponseID     string `json:"response_id"`
 	ConversationID string `json:"conversation_id"`
@@ -41,9 +38,8 @@ type ResponseBody struct {
 	Choices        []Choice
 }
 
-func NewBard(sessionID string) *Bard {
+func NewBard(sessionID string, proxy string) *Bard {
 	baseURL := "https://bard.google.com"
-
 	return &Bard{
 		BaseURL: baseURL,
 		Headers: http.Header{
@@ -56,27 +52,32 @@ func NewBard(sessionID string) *Bard {
 			"Cookie":        []string{"__Secure-1PSID=" + sessionID},
 		},
 		RequestID: rand.Int63n(9999),
+		Proxy: proxy,
 	}
 }
 
 func (b *Bard) getSNlM0e() (string, error) {
 	request, _ := http.NewRequest("GET", b.BaseURL, nil)
-
 	request.Header = b.Headers
-
 	client := &http.Client{}
+	// add proxy configuration
+	if b.Proxy != "" {
+		proxyUrl, err := url.Parse(b.Proxy)
+		if err != nil {
+			panic(err)
+		}
+		transport := &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+		client.Transport = transport
+	}
 	response, err := client.Do(request)
 	if err != nil {
 		return "", err
 	}
-
 	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", err
 	}
-
 	snlm0e := regexp.MustCompile(`"SNlM0e":"(.*?)"`).FindStringSubmatch(string(bodyBytes))[1]
-
 	return snlm0e, nil
 }
 
@@ -89,7 +90,6 @@ func (b *Bard) generateRequestBody(message string, options Options) (url.Values,
 	if err != nil {
 		return nil, err
 	}
-
 	messageString := string(messageBytes)
 	fReqBytes, err := json.Marshal([]*string{
 		nil,
@@ -98,12 +98,10 @@ func (b *Bard) generateRequestBody(message string, options Options) (url.Values,
 	if err != nil {
 		return nil, err
 	}
-
 	snlm0e, err := b.getSNlM0e()
 	if err != nil {
 		return nil, err
 	}
-
 	requestBody := url.Values{
 		"f.req": []string{string(fReqBytes)},
 		"at":    []string{snlm0e},
@@ -114,12 +112,19 @@ func (b *Bard) generateRequestBody(message string, options Options) (url.Values,
 
 func (b *Bard) sendRequest(params string, requestBody url.Values) (*http.Response, error) {
 	request, _ := http.NewRequest("POST", b.BaseURL+"/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate"+params, bytes.NewBufferString(requestBody.Encode()))
-
 	request.Header = b.Headers
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
 
 	client := &http.Client{}
-
+	// add proxy configuration
+	if b.Proxy != "" {
+		proxyUrl, err := url.Parse(b.Proxy)
+		if err != nil {
+			panic(err)
+		}
+		transport := &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+		client.Transport = transport
+	}
 	return client.Do(request)
 }
 
@@ -128,9 +133,7 @@ func (b *Bard) handleResponse(response *http.Response) (*ResponseBody, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	bodySplit := strings.Split(string(bodyBytes), "\n")
-
 	if len(bodySplit) < 8 {
 		return nil, fmt.Errorf("invalid response body: %s", string(bodyBytes))
 	}
@@ -170,7 +173,6 @@ func (b *Bard) handleResponse(response *http.Response) (*ResponseBody, error) {
 		if !ok {
 			continue
 		}
-
 		answer, ok := c.([]interface{})[1].([]interface{})[0].(string)
 		if !ok {
 			continue
@@ -180,7 +182,6 @@ func (b *Bard) handleResponse(response *http.Response) (*ResponseBody, error) {
 			ChoiceID: choiceID,
 			Answer:   answer,
 		}
-
 		choices = append(choices, choice)
 	}
 
@@ -207,6 +208,8 @@ func (b *Bard) SendMessage(message string, options Options) (*ResponseBody, erro
 	if err != nil {
 		return nil, nil
 	}
-
 	return b.handleResponse(response)
+
 }
+
+
