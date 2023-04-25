@@ -38,7 +38,7 @@ type ResponseBody struct {
 	Choices        []Choice
 }
 
-func NewBard(sessionID string) *Bard {
+func NewBard(sessionID string, proxy string) *Bard {
 	baseURL := "https://bard.google.com"
 	return &Bard{
 		BaseURL: baseURL,
@@ -52,6 +52,7 @@ func NewBard(sessionID string) *Bard {
 			"Cookie":        []string{"__Secure-1PSID=" + sessionID},
 		},
 		RequestID: rand.Int63n(9999),
+		Proxy: proxy,
 	}
 }
 
@@ -60,8 +61,8 @@ func (b *Bard) getSNlM0e() (string, error) {
 	request.Header = b.Headers
 	client := &http.Client{}
 	// add proxy configuration
-	if Proxy != "" {
-		proxyUrl, err := url.Parse(Proxy)
+	if b.Proxy != "" {
+		proxyUrl, err := url.Parse(b.Proxy)
 		if err != nil {
 			panic(err)
 		}
@@ -116,8 +117,8 @@ func (b *Bard) sendRequest(params string, requestBody url.Values) (*http.Respons
 
 	client := &http.Client{}
 	// add proxy configuration
-	if Proxy != "" {
-		proxyUrl, err := url.Parse(Proxy)
+	if b.Proxy != "" {
+		proxyUrl, err := url.Parse(b.Proxy)
 		if err != nil {
 			panic(err)
 		}
@@ -210,3 +211,5 @@ func (b *Bard) SendMessage(message string, options Options) (*ResponseBody, erro
 	return b.handleResponse(response)
 
 }
+
+
