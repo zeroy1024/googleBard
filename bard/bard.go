@@ -52,7 +52,7 @@ func NewBard(sessionID string, proxy string) *Bard {
 			"Cookie":        []string{"__Secure-1PSID=" + sessionID},
 		},
 		RequestID: rand.Int63n(9999),
-		Proxy: proxy,
+		Proxy:     proxy,
 	}
 }
 
@@ -162,11 +162,14 @@ func (b *Bard) handleResponse(response *http.Response) (*ResponseBody, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid conversationID: %s", responseMessage[1][0])
 	}
-	question, ok := responseMessage[2][0].([]interface{})[0].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid question: %s", responseMessage[2][0])
-	}
 
+	question := ""
+	if len(responseMessage[2]) != 0 {
+		question, ok = responseMessage[2][0].([]interface{})[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid question: %s", responseMessage[2][0])
+		}
+	}
 	var choices []Choice
 	for _, c := range responseMessage[4] {
 		choiceID, ok := c.([]interface{})[0].(string)
@@ -211,5 +214,3 @@ func (b *Bard) SendMessage(message string, options Options) (*ResponseBody, erro
 	return b.handleResponse(response)
 
 }
-
-
